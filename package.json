@@ -1,6 +1,6 @@
 {
   "name": "conti-correnti-api",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Backend per la gestione dei conti correnti",
   "main": "src/index.ts",
   "scripts": {
