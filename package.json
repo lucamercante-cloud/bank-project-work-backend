@@ -1,11 +1,12 @@
 {
   "name": "conti-correnti-api",
-  "version": "1.0.2",
+  "version": "1.0.0",
   "description": "Backend per la gestione dei conti correnti",
   "main": "src/index.ts",
   "scripts": {
     "dev": "nodemon --exec ts-node src/index.ts",
     "gen-data": "ts-node gen-data.ts",
+    "test-data": "ts-node test-data.ts",
     "build": "tsc",
     "start": "node dist/index.js"
   },
