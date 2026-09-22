@@ -12,28 +12,30 @@ const contoCorrenteSchema = new Schema<ContoCorrenteDocument>({
   nomeTitolare: { type: String, required: true },
   cognomeTitolare: { type: String, required: true },
   dataApertura: { type: Date, required: true, default: () => new Date() },
-  iban: { type: String, required: false }
+  iban: { type: String, required: false },
 });
 
-contoCorrenteSchema.set('toJSON', {
+contoCorrenteSchema.set("toJSON", {
   transform: (_, ret: any) => {
     ret.id = ret._id;
     delete ret._id;
     delete ret.__v;
     delete ret.hashedPassword;
     return ret;
-  }
+  },
 });
 
-contoCorrenteSchema.set('toObject', {
+contoCorrenteSchema.set("toObject", {
   transform: (_, ret: any) => {
     ret.id = ret._id;
     delete ret._id;
     delete ret.__v;
     delete ret.hashedPassword;
     return ret;
-  }
+  },
 });
 
-export const ContoCorrenteModel =
-  model<ContoCorrenteDocument>('ContoCorrente', contoCorrenteSchema);
+export const ContoCorrenteModel = model<ContoCorrenteDocument>(
+  "ContoCorrente",
+  contoCorrenteSchema,
+);

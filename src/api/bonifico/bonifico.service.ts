@@ -7,14 +7,14 @@ import { InsufficientBalanceError } from "../../errors/insufficient-balance.erro
 import { Movimento } from "../movimento/movimento.entity";
 
 export class BonificoService {
-
   async esegui(
     mittente: ContoCorrente,
     ibanDestinatario: string,
-    importo: number
+    importo: number,
   ): Promise<Movimento> {
-
-    const destinatario = await ContoCorrenteModel.findOne({ iban: ibanDestinatario });
+    const destinatario = await ContoCorrenteModel.findOne({
+      iban: ibanDestinatario,
+    });
     if (!destinatario) {
       throw new IbanNotFoundError();
     }
@@ -24,24 +24,26 @@ export class BonificoService {
       throw new InsufficientBalanceError();
     }
 
-    const categoriaUscita = await categoriaSrv.getByNome('Bonifico Uscita');
-    const categoriaEntrata = await categoriaSrv.getByNome('Bonifico Entrata');
+    const categoriaUscita = await categoriaSrv.getByNome("Bonifico Uscita");
+    const categoriaEntrata = await categoriaSrv.getByNome("Bonifico Entrata");
     if (!categoriaUscita || !categoriaEntrata) {
-      throw new Error('categorie "Bonifico Uscita"/"Bonifico Entrata" non trovate: hai lanciato npm run gen-data?');
+      throw new Error(
+        'categorie "Bonifico Uscita"/"Bonifico Entrata" non trovate: hai lanciato npm run gen-data?',
+      );
     }
 
     // movimento in uscita sul conto del mittente
     const movimentoUscita = await movimentoSrv.create(mittente.id, {
       importo,
       categoriaMovimentoId: categoriaUscita.id,
-      descrizioneEstesa: `Bonifico disposto a favore di ${ibanDestinatario}`
+      descrizioneEstesa: `Bonifico disposto a favore di ${ibanDestinatario}`,
     });
 
     // movimento in entrata sul conto del destinatario
     await movimentoSrv.create(destinatario.id, {
       importo,
       categoriaMovimentoId: categoriaEntrata.id,
-      descrizioneEstesa: `Bonifico disposto da ${mittente.nomeTitolare} ${mittente.cognomeTitolare}`
+      descrizioneEstesa: `Bonifico disposto da ${mittente.nomeTitolare} ${mittente.cognomeTitolare}`,
     });
 
     return movimentoUscita;

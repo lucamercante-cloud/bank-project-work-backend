@@ -10,3 +10,5 @@ export interface Movimento {
   categoriaMovimento: string | Categoria;
   descrizioneEstesa: string;
 }
+
+//contoCorrente?: { type: Types.ObjectId, ref: "ContoCorrente" }
