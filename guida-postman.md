@@ -1,12 +1,12 @@
 # Guida alle API — Gestione Conti Correnti
 
-Ogni sezione: **perché esiste** (con la frase della consegna), **come si chiama**, e **un esempio reale** di richiesta/risposta così chi legge vede esattamente cosa aspettarsi, non solo la teoria.
+Ogni sezione: **perché esiste** (con la frase della consegna), **come si chiama**, e **un esempio reale** di richiesta/risposta.
 
 ## Setup, una volta sola
 
 1. `npm install`
 2. `npm run gen-data` → console: `inserite 9 categorie`
-3. Registrare almeno 2 utenti, impostare un IBAN a mano su entrambi (Compass/Atlas)
+3. Registrare almeno 2 utenti, impostare un IBAN a mano su entrambi (`npm run set-iban` oppure a mano su Compass/Atlas)
 
 ---
 
@@ -42,8 +42,6 @@ POST http://localhost:3000/api/register
 }
 ```
 
-Nota: niente `password` nella risposta (rimossa apposta), e `id` è quello che userai ovunque da qui in poi per riferirti a questo conto.
-
 ### Login
 
 ```
@@ -75,19 +73,57 @@ Da qui in poi, **ogni** chiamata avrà nell'header:
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
+**Novità**: ogni tentativo di login (riuscito o no) scrive ora un record nella collezione `operationlogs` — _"Per ogni accesso memorizzare in una Tabella l'indirizzo IP, data/ora e se l'accesso è valido oppure no"_. Verificalo su Compass/Atlas dopo un login: dovresti vedere `{ tipo: "login", ip: "...", esito: true, data: "..." }`. Prova anche un login con password sbagliata e controlla che compaia un secondo record con `esito: false`.
+
 ---
 
 ## CONTO CORRENTE
 
 **Perché**: pagina _"Profilo"_ (_"tutti i dati della TContiCorrenti"_) e home page (_"Benvenuto Mario Rossi"_).
 
+### Profilo
+
 ```
 GET http://localhost:3000/api/conto-corrente/me
 ```
 
-**Risposta (200):** identica all'oggetto `user` del login qui sopra — stesso account, stessi campi.
+Header: `Authorization: Bearer <token>`
+**Risposta (200):** identica all'oggetto `user` del login.
 
 **Test di errore**: senza header `Authorization` → **401**.
+
+### Modifica password (nuovo)
+
+**Perché**: _"Modifica Password (ovviamente possibile solo se l'utente è loggato). Memorizzare in una Tabella l'indirizzo IP, data/ora e se l'operazione è andata a buon fine o meno"_.
+
+```
+PATCH http://localhost:3000/api/conto-corrente/password
+```
+
+Header: `Authorization: Bearer <token>`
+
+```json
+{
+  "vecchiaPassword": "Password1!",
+  "nuovaPassword": "NuovaPassword2!",
+  "confermaNuovaPassword": "NuovaPassword2!"
+}
+```
+
+**Risposta (204)**: nessun body, solo lo status "No Content" — significa che è andata bene.
+
+**Test di errore**:
+
+- `vecchiaPassword` sbagliata → **400**:
+
+```json
+{ "error": "WrongPassword", "message": "password attuale non corretta" }
+```
+
+- `nuovaPassword` diversa da `confermaNuovaPassword` → **400** `PasswordMismatch`
+- `nuovaPassword` senza maiuscola/simbolo/8+ caratteri → **400** `ValidationError`
+- Dopo il cambio, prova a fare login con la **vecchia** password → **401** (conferma che il cambio è avvenuto per davvero)
+- Controlla in `operationlogs`: nuovo record con `tipo: "modifica-password"`
 
 ---
 
@@ -99,7 +135,8 @@ GET http://localhost:3000/api/conto-corrente/me
 GET http://localhost:3000/api/categorie
 ```
 
-**Risposta (200), esempio parziale (ce ne sono 9 in tutto):**
+Header: `Authorization: Bearer <token>`
+**Risposta (200), esempio parziale:**
 
 ```json
 [
@@ -122,17 +159,13 @@ GET http://localhost:3000/api/categorie
 ]
 ```
 
-Copia l'`id` di "Stipendio" (o un'altra a scelta): serve al prossimo test.
-
 ---
 
 ## MOVIMENTO
 
-Prima, per avere dati veri da vedere, lanciate `npm run test-data -- mario.rossi@test.it` (crea 5 movimenti finti su quell'account). Con questi 5 movimenti, il saldo finale di Mario diventa **1510** (1500 stipendio − 80 utenze − 100 prelievo − 10 ricarica + 200 versamento).
+Prima, per avere dati veri: `npm run test-data -- mario.rossi@test.it` (crea 5 movimenti finti). Saldo risultante: **1510** (1500 stipendio − 80 utenze − 100 prelievo − 10 ricarica + 200 versamento).
 
 ### Lista semplice — RicercaMovimenti1
-
-**Perché**: home page + _"visualizzare gli ultimi n movimenti... e il saldo finale del conto corrente"_.
 
 ```
 GET http://localhost:3000/api/movimenti?n=5
@@ -208,38 +241,13 @@ GET http://localhost:3000/api/movimenti?n=5
 }
 ```
 
-Nota l'ordine: dal più recente al più vecchio (in cima "Versamento Bancomat", creato per ultimo). `saldoFinale` combacia col `saldo` del primo elemento — è normale, perché quello è cronologicamente l'ultimo movimento.
-
 ### Filtrata per categoria — RicercaMovimenti2
-
-**Perché**: _"di una certa CategoriaMovimenti scelta dall'utente. Non visualizza il saldo finale"_.
 
 ```
 GET http://localhost:3000/api/movimenti?n=10&categoriaId=6ab0aaa3
 ```
 
-(usando l'id di "Pagamento Utenze")
-**Risposta (200):**
-
-```json
-{
-  "movimenti": [
-    {
-      "data": "2026-09-21T...",
-      "importo": 80,
-      "saldo": 1420,
-      "categoriaMovimento": {
-        "nomeCategoria": "Pagamento Utenze",
-        "tipologia": "Uscita"
-      },
-      "descrizioneEstesa": "Bolletta luce",
-      "id": "..."
-    }
-  ]
-}
-```
-
-Il campo `saldoFinale` non compare proprio nel JSON — è la conferma che il filtro funziona come da consegna.
+**Risposta (200):** array filtrato, niente `saldoFinale`.
 
 ### Filtrata per date — RicercaMovimenti3
 
@@ -247,22 +255,42 @@ Il campo `saldoFinale` non compare proprio nel JSON — è la conferma che il fi
 GET http://localhost:3000/api/movimenti?n=10&dataInizio=2026-01-01&dataFine=2026-12-31
 ```
 
-Stessa forma di risposta della precedente (array + niente `saldoFinale`), ma filtrato per data invece che per categoria.
+Stessa forma, filtrato per data.
 
-### Dettaglio — pagina DettaglioMovimento
+### Dettaglio
 
 ```
 GET http://localhost:3000/api/movimenti/<id_movimento>
 ```
 
-(usa un `id` preso dall'array sopra)
-**Risposta (200):** un singolo oggetto movimento, stessa forma di uno degli elementi dell'array — _"tutti i campi della TMovimentiContoCorrente"_.
+### Export CSV (nuovo)
 
-### Test di errore
+**Perché**: richiesto in tutte e 3 le RicercaMovimenti — _"Possibilità di esportazione dei movimenti in formato excel oppure csv"_.
 
-- `?categoriaId=xyz` → **400**: `{"error":"ValidationError","message":"categoriaId must be a mongodb id"}`
-- `/movimenti/<id di un movimento di un altro utente>` → **404**: `{"error":"NotFound","message":"Entity not found"}`
-- Nessun `POST /movimenti`: **non esiste**, i movimenti nascono solo da ricarica/bonifico/apertura conto.
+```
+GET http://localhost:3000/api/movimenti/export?n=10
+```
+
+Accetta **gli stessi filtri** di `GET /movimenti` (`categoriaId`, `dataInizio`, `dataFine`).
+
+**Su Postman**: non premere "Send" ma la freccetta accanto e scegli **"Send and Download"**, altrimenti il contenuto CSV ti compare come testo grezzo nella risposta invece di scaricarsi come file.
+
+**Risposta**: un file `movimenti.csv`, contenuto tipo:
+
+```csv
+Data,Importo,Categoria,DescrizioneEstesa,Saldo
+2026-09-21T14:32:10.000Z,200,"Versamento Bancomat","Versamento contanti",1510
+2026-09-21T14:31:05.000Z,10,"Ricarica Telefonica","Ricarica iliad",1310
+```
+
+Apribile direttamente con Excel/LibreOffice/Google Sheets.
+
+### Test di errore (validi per tutti gli endpoint di movimento)
+
+- `?categoriaId=xyz` → **400** `ValidationError`
+- `/movimenti/<id di un movimento di un altro utente>` → **404**
+- senza `Authorization` → **401**
+- Nessun `POST /movimenti` diretto: i movimenti nascono solo da ricarica/bonifico/apertura conto.
 
 ---
 
@@ -282,7 +310,7 @@ POST http://localhost:3000/api/ricariche
 }
 ```
 
-**Risposta (201)** — partendo da saldo 1510, dopo la ricarica:
+**Risposta (201):**
 
 ```json
 {
@@ -298,26 +326,17 @@ POST http://localhost:3000/api/ricariche
 }
 ```
 
-`operatore` valido solo tra `iliad`/`tim`/`vodafone`/`windtre`, `taglio` solo tra `5`/`10`/`20`/`30` — qualunque altro valore → **400** `ValidationError`.
+`operatore`: `iliad`/`tim`/`vodafone`/`windtre`. `taglio`: `5`/`10`/`20`/`30`.
 
-**Test saldo insufficiente**: se il conto ha meno di 5€, prova comunque `taglio: 5` → **400**:
-
-```json
-{
-  "error": "InsufficientBalance",
-  "message": "saldo insufficiente per completare l'operazione"
-}
-```
+**Test saldo insufficiente** → **400** `InsufficientBalance`.
 
 ---
 
 ## BONIFICO — walkthrough completo
 
-**Perché**: _"Procedura per l'inserimento dell'IBAN del destinatario e importo bonifico. Va verificato che l'IBAN sia presente... Va verificato che ci sia saldo disponibile"_.
+**Perché**: _"Va verificato che l'IBAN sia presente... Va verificato che ci sia saldo disponibile"_.
 
-Partiamo da: Mario (mittente, saldo 1500 dopo la ricarica sopra) fa un bonifico di 50€ a Caleb (destinatario, IBAN `IT60X0542811101000000123457`, saldo attuale supponiamo 0).
-
-**1. La chiamata (col token di Mario):**
+**1. La chiamata (col token di Mario, mittente):**
 
 ```
 POST http://localhost:3000/api/bonifici
@@ -330,7 +349,7 @@ POST http://localhost:3000/api/bonifici
 }
 ```
 
-**Risposta (201)** — questo è il movimento sul conto del **mittente** (Mario):
+**Risposta (201)** — movimento sul conto del **mittente**:
 
 ```json
 {
@@ -346,21 +365,11 @@ POST http://localhost:3000/api/bonifici
 }
 ```
 
-**2. Verifica sul mittente (Mario):**
+**2. Verifica sul destinatario (Caleb, col suo token):**
 
 ```
 GET http://localhost:3000/api/movimenti?n=1
 ```
-
-(col token di Mario) → in cima trovi lo stesso movimento di uscita appena visto, e `saldoFinale: 1450`.
-
-**3. Verifica sul destinatario (Caleb)** — bisogna fare login con l'account di Caleb per avere il suo token:
-
-```
-GET http://localhost:3000/api/movimenti?n=1
-```
-
-(col token di Caleb) → risposta:
 
 ```json
 {
@@ -381,35 +390,22 @@ GET http://localhost:3000/api/movimenti?n=1
 }
 ```
 
-Questo è il punto chiave da far vedere al gruppo: **una** chiamata `POST /bonifici` ha creato **due** movimenti su **due conti diversi** — è la prova che il bonifico "sposta" davvero i soldi da un conto all'altro, non solo scrive un record isolato.
+**Una** chiamata `POST /bonifici` crea **due** movimenti su **due conti diversi**.
 
 ### Test di errore
 
-- IBAN inventato (`"IT00X000..."`) → **400**:
-
-```json
-{ "error": "IbanNotFound", "message": "IBAN destinatario non trovato" }
-```
-
-- `importo` più alto del saldo disponibile → **400**:
-
-```json
-{
-  "error": "InsufficientBalance",
-  "message": "saldo insufficiente per completare l'operazione"
-}
-```
-
-- `importo: -10` o `importo: 0` → **400** `ValidationError` (deve essere un numero positivo)
+- IBAN inventato → **400** `IbanNotFound`
+- saldo insufficiente → **400** `InsufficientBalance`
+- `importo` negativo o zero → **400** `ValidationError`
 
 ---
 
 ## Attenzione ai nomi dei campi in MongoDB
 
-Se modificate documenti a mano (Compass/Atlas), sia il **nome** che il **valore** di ogni campo sono case-sensitive: `iban` e `IBAN` sono due campi diversi per MongoDB, non lo stesso campo scritto in due modi. Il nome nello schema è sempre minuscolo (`iban`); il valore invece va scritto tutto maiuscolo, seguendo lo standard IBAN vero.
+Se modificate documenti a mano (Compass/Atlas), sia il **nome** che il **valore** di ogni campo sono case-sensitive: `iban` e `IBAN` sono due campi diversi per MongoDB. Nome sempre minuscolo (`iban`); valore tutto maiuscolo (standard IBAN vero).
 
 ---
 
 ## Cosa manca ancora rispetto alla consegna completa
 
-Non implementati: email di conferma registrazione + movimento di apertura automatico, endpoint per caricare l'IBAN via API, modifica password, export CSV/Excel, log del login. Stesso schema a 6 livelli (entity → model → dto → service → controller → router) per ognuno, quando li affronterete.
+Non implementato: email di conferma registrazione + movimento di apertura automatico (in sospeso, servono decisioni di gruppo prima di scriverlo — vedi se bloccare o no il login finché l'utente non conferma).

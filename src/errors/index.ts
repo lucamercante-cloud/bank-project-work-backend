@@ -1,10 +1,11 @@
-import { validationHandler } from './validation-error';
+import { validationHandler } from "./validation-error";
 import { genericErrorHandler } from "./generic";
 import { notFoundHandler } from "./not-found.error";
 import { emailExistsHandler } from "./email-exists.error";
 import { passwordMismatchHandler } from "./password-mismatch.error";
 import { ibanNotFoundHandler } from "./iban-not-found.error";
 import { insufficientBalanceHandler } from "./insufficient-balance.error";
+import { wrongPasswordHandler } from "./wrong-password.error";
 
 export const errorHandlers = [
   validationHandler,
@@ -13,5 +14,6 @@ export const errorHandlers = [
   passwordMismatchHandler,
   ibanNotFoundHandler,
   insufficientBalanceHandler,
-  genericErrorHandler
+  wrongPasswordHandler,
+  genericErrorHandler,
 ];

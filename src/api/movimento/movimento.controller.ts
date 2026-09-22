@@ -31,3 +31,40 @@ export const detail = async (
     next(err);
   }
 };
+
+function escapeCsvField(value: string): string {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+export const exportCsv = async (
+  req: TypedRequest<unknown, QueryMovimentoDto>,
+  res: Response,
+  next: NextFunction) => {
+  try {
+    const { movimenti } = await movimentoSrv.find(req.user!.id, req.query);
+
+    const header = ['Data', 'Importo', 'Categoria', 'DescrizioneEstesa', 'Saldo'].join(',');
+
+    const rows = movimenti.map((m: any) => {
+      const data = new Date(m.data).toISOString();
+      const categoria = typeof m.categoriaMovimento === 'object'
+        ? m.categoriaMovimento.nomeCategoria
+        : '';
+      return [
+        data,
+        m.importo,
+        escapeCsvField(categoria),
+        escapeCsvField(m.descrizioneEstesa),
+        m.saldo
+      ].join(',');
+    });
+
+    const csv = [header, ...rows].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="movimenti.csv"');
+    res.send(csv);
+  } catch (err) {
+    next(err);
+  }
+};

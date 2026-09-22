@@ -6,6 +6,7 @@ import { PasswordMismatchError } from "../../errors/password-mismatch.error";
 import passport from "passport";
 import * as jwt from "jsonwebtoken";
 import contoCorrenteSrv from "../conto-corrente/conto-corrente.service";
+import operationLogSrv from "../operation-log/operation-log.service";
 
 export const register = async (
   req: TypedRequest<RegisterDto>,
@@ -17,9 +18,7 @@ export const register = async (
       throw new PasswordMismatchError();
     }
 
-    // tolgo password/confermaPassword: al service serve solo il profilo
-    // + la password in chiaro (che lui stesso hasherà)
-    const data = omit(req.body, 'password', 'confermaPassword');
+    const data = omit(req.body, "password", "confermaPassword");
 
     const newAccount = await contoCorrenteSrv.register(data, req.body.password);
     res.status(201);
@@ -38,13 +37,14 @@ export const login = async (
     passport.authenticate(
       "local",
       { session: false },
-      (loginErr, account, info) => {
+      async (loginErr, account, info) => {
         if (loginErr) {
           next(loginErr);
           return;
         }
 
         if (!account) {
+          await operationLogSrv.log("login", req.ip ?? "unknown", false);
           res.status(401);
           res.json({
             error: "LoginError",
@@ -53,7 +53,16 @@ export const login = async (
           return;
         }
 
-        const token = jwt.sign(account, "my_jwt_secret", { expiresIn: "7 days" });
+        await operationLogSrv.log(
+          "login",
+          req.ip ?? "unknown",
+          true,
+          account.id,
+        );
+
+        const token = jwt.sign(account, "my_jwt_secret", {
+          expiresIn: "7 days",
+        });
         res.json({
           user: account,
           token,
