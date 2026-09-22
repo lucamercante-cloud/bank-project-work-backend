@@ -22,7 +22,7 @@ async function run() {
   if (!mongoUri) {
     console.error("ERRORE: MONGO_URI non è definita nel file .env");
     process.exit(1);
-  }
+  } 
 
   await mongoose.connect(mongoUri);
 
