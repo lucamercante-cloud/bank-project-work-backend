@@ -8,5 +8,5 @@ export interface ContoCorrente {
   nomeTitolare: string;
   cognomeTitolare: string;
   dataApertura: Date;
-  iban?: string; // caricato manualmente dopo la registrazione, non in fase di register
+  iban?: string; // generato automaticamente in fase di registrazione (vedi conto-corrente.service.ts)
 }

@@ -7,7 +7,6 @@
     "dev": "nodemon --exec ts-node src/index.ts",
     "gen-data": "ts-node gen-data.ts",
     "test-data": "ts-node test-data.ts",
-    "set-iban": "ts-node set-iban.ts",
     "build": "tsc",
     "start": "node dist/index.js"
   },

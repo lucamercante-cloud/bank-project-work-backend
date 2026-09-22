@@ -6,7 +6,7 @@ Ogni sezione: **perché esiste** (con la frase della consegna), **come si chiama
 
 1. `npm install`
 2. `npm run gen-data` → console: `inserite 9 categorie`
-3. Registrare almeno 2 utenti, impostare un IBAN a mano su entrambi (`npm run set-iban` oppure a mano su Compass/Atlas)
+3. Registrare almeno 2 utenti: l'IBAN viene generato automaticamente dalla WebApi in fase di registrazione, non serve più nessun passaggio manuale (vedi sezione "Novità" più sotto)
 
 ---
 
@@ -38,9 +38,12 @@ POST http://localhost:3000/api/register
   "nomeTitolare": "Mario",
   "cognomeTitolare": "Rossi",
   "dataApertura": "2026-09-21T10:43:00.218Z",
+  "iban": "IT60X0542811101006ab10a34bbfc",
   "id": "6ab10a34bbfcf94e3de407a7"
 }
 ```
+
+**Novità**: l'`iban` torna già valorizzato in questa risposta. Non serve più caricarlo a mano né lanciare nessuno script dopo la registrazione: viene generato automaticamente dalla WebApi (`ContoCorrenteService.register`), a partire dall'id del nuovo account, così è garantito unico per ogni utente.
 
 ### Login
 
@@ -409,3 +412,15 @@ Se modificate documenti a mano (Compass/Atlas), sia il **nome** che il **valore*
 ## Cosa manca ancora rispetto alla consegna completa
 
 Non implementato: email di conferma registrazione + movimento di apertura automatico (in sospeso, servono decisioni di gruppo prima di scriverlo — vedi se bloccare o no il login finché l'utente non conferma).
+
+---
+
+## Changelog per il gruppo
+
+**IBAN ora automatico (non più a mano).** La consegna diceva di caricarlo manualmente dopo la registrazione, ma il prof ha confermato che va bene anche generarlo in automatico, quindi lo abbiamo cambiato così:
+
+- `POST /api/register` ora restituisce direttamente l'`iban` nella risposta (vedi esempio sopra), generato dentro `ContoCorrenteService.register()`.
+- Rimossi: lo script `set-iban.ts` e il comando `npm run set-iban` — non servono più, cancellateli/aggiornate il vostro `package.json` locale se lo avete già lanciato in passato.
+- Nuovo file `src/lib/iban.ts` con la funzione `generaIban(accountId)`: stessa identica logica che stava nello script, solo richiamata automaticamente invece che a mano.
+- **Se avete già account di test creati prima di questo cambio e senza iban**, ripulite il DB (o ri-registrate quegli utenti) così l'iban risulta popolato per tutti; non serve più nessuno script per sistemarli a posteriori.
+- Nessun'altra funzionalità è cambiata: registrazione, login, bonifici ecc. si comportano come prima, solo l'iban compare subito.
