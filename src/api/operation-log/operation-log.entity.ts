@@ -1,4 +1,8 @@
-export type TipoOperazione = 'login' | 'ricarica' | 'bonifico' | 'modifica-password';
+export type TipoOperazione =
+  | "login"
+  | "ricarica"
+  | "bonifico"
+  | "modifica-password";
 
 export interface OperationLog {
   id: string;

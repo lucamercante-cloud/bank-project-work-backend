@@ -1,15 +1,13 @@
 import { EmailExistsError } from "../../errors/email-exists.error";
 import { ContoCorrente } from "./conto-corrente.entity";
 import { ContoCorrenteModel } from "./conto-corrente.model";
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from "bcrypt";
 
 export class ContoCorrenteService {
-
   async register(
-    data: Omit<ContoCorrente, 'id' | 'dataApertura' | 'iban'>,
-    password: string
+    data: Omit<ContoCorrente, "id" | "dataApertura" | "iban">,
+    password: string,
   ): Promise<ContoCorrente> {
-
     const existing = await ContoCorrenteModel.findOne({ email: data.email });
     if (existing) {
       throw new EmailExistsError();
@@ -20,7 +18,7 @@ export class ContoCorrenteService {
     const created = await ContoCorrenteModel.create({
       ...data,
       hashedPassword,
-      dataApertura: new Date()
+      dataApertura: new Date(),
     });
 
     // TODO (parte "api", esclusa qui): a questo punto andrebbe inviata

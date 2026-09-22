@@ -1,6 +1,6 @@
 import { IsIn, IsString, MinLength } from "class-validator";
 
-const OPERATORI = ['iliad', 'tim', 'vodafone', 'windtre'];
+const OPERATORI = ["iliad", "tim", "vodafone", "windtre"];
 const TAGLI = [5, 10, 20, 30];
 
 export class CreateRicaricaDto {
