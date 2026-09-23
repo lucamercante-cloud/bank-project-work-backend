@@ -1,6 +1,12 @@
-import { IsEmail, IsString, Matches, MinLength } from "class-validator";
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  IsUrl,
+  Matches,
+  MinLength,
+} from "class-validator";
 
-// Regola dalla consegna: "Password almeno 8 caratteri, una maiuscola e un simbolo"
 const PASSWORD_PATTERN = /^(?=.*[A-Z])(?=.*[^A-Za-z0-9]).{8,}$/;
 
 export class RegisterDto {
@@ -8,12 +14,11 @@ export class RegisterDto {
   email: string;
 
   @Matches(PASSWORD_PATTERN, {
-    message: 'la password deve avere almeno 8 caratteri, una maiuscola e un simbolo'
+    message:
+      "la password deve avere almeno 8 caratteri, una maiuscola e un simbolo",
   })
   password: string;
 
-  // il controllo "uguale a password" va oltre quello che class-validator
-  // fa comodamente su un solo campo: viene ricontrollato nel controller
   @IsString()
   @MinLength(1)
   confermaPassword: string;
@@ -25,6 +30,10 @@ export class RegisterDto {
   @IsString()
   @MinLength(1)
   cognomeTitolare: string;
+
+  @IsUrl()
+  @IsOptional()
+  fotoProfilo?: string;
 }
 
 export class LoginDto {

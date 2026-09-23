@@ -26,10 +26,6 @@ export class MovimentoService {
       .limit(filters.n ?? DEFAULT_N)
       .populate("categoriaMovimento");
 
-    // il saldo finale ha senso solo nella vista "semplice" (RicercaMovimenti1):
-    // appena filtri per categoria o per intervallo di date, il saldo del
-    // conto NON è più legato a quella lista filtrata, quindi non lo torniamo
-    // (coerente con la consegna: "Non visualizza il saldo finale")
     let saldoFinale: number | undefined = undefined;
     if (!filters.categoriaId && !filters.dataInizio && !filters.dataFine) {
       const ultimo = await MovimentoModel.findOne({
@@ -51,8 +47,6 @@ export class MovimentoService {
     }).populate("categoriaMovimento");
   }
 
-  // usato da bonifico/ricarica PRIMA di creare il movimento, per sapere
-  // se il conto ha saldo sufficiente
   async getSaldoAttuale(contoCorrenteId: string): Promise<number> {
     const ultimo = await MovimentoModel.findOne({
       contoCorrente: contoCorrenteId,
@@ -60,16 +54,12 @@ export class MovimentoService {
     return ultimo?.saldo ?? 0;
   }
 
-  // Uso INTERNO (non esposto da nessun controller/router): lo richiameranno
-  // i moduli "bonifico"/"ricarica"/apertura conto per registrare un nuovo
-  // movimento. Il saldo NON arriva mai dal client: si calcola qui.
   async create(
     contoCorrenteId: string,
     data: {
       importo: number;
       categoriaMovimentoId: string;
       descrizioneEstesa: string;
-      dataMovimento?: Date;
     },
   ): Promise<Movimento> {
     const categoria = await categoriaSrv.getById(data.categoriaMovimentoId);
@@ -87,10 +77,10 @@ export class MovimentoService {
 
     const movimento = await MovimentoModel.create({
       contoCorrente: contoCorrenteId,
-      // dataMovimento arriva dal bonifico quando l'utente indica una
-      // dataEsecuzione; ricarica/apertura conto non la passano e restano
-      // "adesso" come prima
-      data: data.dataMovimento ?? new Date(),
+      // SEMPRE "adesso": è il campo che guida ordinamento e calcolo del
+      // saldo a catena, non deve mai essere scelto dal client (vedi
+      // bonifico.service.ts per dataEsecuzione, che va solo in descrizione)
+      data: new Date(),
       importo: data.importo,
       saldo: nuovoSaldo,
       categoriaMovimento: data.categoriaMovimentoId,

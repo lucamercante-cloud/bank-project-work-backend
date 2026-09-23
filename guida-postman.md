@@ -6,7 +6,7 @@ Ogni sezione: **perché esiste** (con la frase della consegna), **come si chiama
 
 1. `npm install`
 2. `npm run gen-data` → console: `inserite 9 categorie`
-3. Registrare almeno 2 utenti: l'IBAN viene generato automaticamente dalla WebApi in fase di registrazione, non serve più nessun passaggio manuale (vedi sezione "Novità" più sotto)
+3. Registrare almeno 2 utenti: l'IBAN viene generato automaticamente dalla WebApi in fase di registrazione, non serve nessun passaggio manuale (confermato ok dal prof)
 
 ---
 
@@ -26,9 +26,12 @@ POST http://localhost:3000/api/register
   "password": "Password1!",
   "confermaPassword": "Password1!",
   "nomeTitolare": "Mario",
-  "cognomeTitolare": "Rossi"
+  "cognomeTitolare": "Rossi",
+  "fotoProfilo": "https://i.pravatar.cc/150?u=mario"
 }
 ```
+
+`fotoProfilo` è **opzionale** (url dell'immagine): se non la mandi, l'account viene creato comunque, semplicemente senza quel campo valorizzato.
 
 **Risposta (201):**
 
@@ -39,11 +42,12 @@ POST http://localhost:3000/api/register
   "cognomeTitolare": "Rossi",
   "dataApertura": "2026-09-21T10:43:00.218Z",
   "iban": "IT60X0542811101006ab10a34bbfc",
+  "fotoProfilo": "https://i.pravatar.cc/150?u=mario",
   "id": "6ab10a34bbfcf94e3de407a7"
 }
 ```
 
-**Novità**: l'`iban` torna già valorizzato in questa risposta. Non serve più caricarlo a mano né lanciare nessuno script dopo la registrazione: viene generato automaticamente dalla WebApi (`ContoCorrenteService.register`), a partire dall'id del nuovo account, così è garantito unico per ogni utente.
+L'`iban` torna già valorizzato in questa risposta (generato automaticamente da `ContoCorrenteService.register`, a partire dall'id del nuovo account).
 
 ### Login
 
@@ -64,6 +68,8 @@ POST http://localhost:3000/api/login
     "nomeTitolare": "Mario",
     "cognomeTitolare": "Rossi",
     "dataApertura": "2026-09-21T10:43:00.218Z",
+    "iban": "IT60X0542811101006ab10a34bbfc",
+    "fotoProfilo": "https://i.pravatar.cc/150?u=mario",
     "id": "6ab10a34bbfcf94e3de407a7"
   },
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -76,7 +82,7 @@ Da qui in poi, **ogni** chiamata avrà nell'header:
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-**Novità**: ogni tentativo di login (riuscito o no) scrive ora un record nella collezione `operationlogs` — _"Per ogni accesso memorizzare in una Tabella l'indirizzo IP, data/ora e se l'accesso è valido oppure no"_. Verificalo su Compass/Atlas dopo un login: dovresti vedere `{ tipo: "login", ip: "...", esito: true, data: "..." }`. Prova anche un login con password sbagliata e controlla che compaia un secondo record con `esito: false`.
+Ogni tentativo di login (riuscito o no) scrive un record nella collezione `operationlogs` — _"Per ogni accesso memorizzare in una Tabella l'indirizzo IP, data/ora e se l'accesso è valido oppure no"_.
 
 ---
 
@@ -91,11 +97,11 @@ GET http://localhost:3000/api/conto-corrente/me
 ```
 
 Header: `Authorization: Bearer <token>`
-**Risposta (200):** identica all'oggetto `user` del login.
+**Risposta (200):** identica all'oggetto `user` del login (con `fotoProfilo` se presente).
 
 **Test di errore**: senza header `Authorization` → **401**.
 
-### Modifica password (nuovo)
+### Modifica password
 
 **Perché**: _"Modifica Password (ovviamente possibile solo se l'utente è loggato). Memorizzare in una Tabella l'indirizzo IP, data/ora e se l'operazione è andata a buon fine o meno"_.
 
@@ -113,60 +119,32 @@ Header: `Authorization: Bearer <token>`
 }
 ```
 
-**Risposta (204)**: nessun body, solo lo status "No Content" — significa che è andata bene.
+**Risposta (204)**: nessun body.
 
 **Test di errore**:
-
-- `vecchiaPassword` sbagliata → **400**:
-
-```json
-{ "error": "WrongPassword", "message": "password attuale non corretta" }
-```
-
+- `vecchiaPassword` sbagliata → **400** `WrongPassword`
 - `nuovaPassword` diversa da `confermaNuovaPassword` → **400** `PasswordMismatch`
 - `nuovaPassword` senza maiuscola/simbolo/8+ caratteri → **400** `ValidationError`
-- Dopo il cambio, prova a fare login con la **vecchia** password → **401** (conferma che il cambio è avvenuto per davvero)
-- Controlla in `operationlogs`: nuovo record con `tipo: "modifica-password"`
+- Dopo il cambio, prova login con la **vecchia** password → **401**
+- Controlla in `operationlogs`: record con `tipo: "modifica-password"`
 
 ---
 
 ## CATEGORIA
 
-**Perché**: _"Caricare delle CategorieMovimenti"_ — servono al frontend per il menu a tendina di RicercaMovimenti2.
+**Perché**: _"Caricare delle CategorieMovimenti"_.
 
 ```
 GET http://localhost:3000/api/categorie
 ```
 
 Header: `Authorization: Bearer <token>`
-**Risposta (200), esempio parziale:**
-
-```json
-[
-  {
-    "nomeCategoria": "Apertura Conto",
-    "tipologia": "Entrata",
-    "id": "6ab0aaa1..."
-  },
-  {
-    "nomeCategoria": "Bonifico Entrata",
-    "tipologia": "Entrata",
-    "id": "6ab0aaa2..."
-  },
-  {
-    "nomeCategoria": "Bonifico Uscita",
-    "tipologia": "Uscita",
-    "id": "6ab0aaa3..."
-  },
-  { "nomeCategoria": "Stipendio", "tipologia": "Entrata", "id": "6ab0aaa8..." }
-]
-```
 
 ---
 
 ## MOVIMENTO
 
-Prima, per avere dati veri: `npm run test-data -- mario.rossi@test.it` (crea 5 movimenti finti). Saldo risultante: **1510** (1500 stipendio − 80 utenze − 100 prelievo − 10 ricarica + 200 versamento).
+Per popolare dati veri: `npm run test-data -- mario.rossi@test.it`. Crea **10 movimenti** (come richiesto dalla consegna: *"caricare manualmente almeno 10 Movimenti per due conti correnti di test"*), il primo sempre `"Apertura Conto"` con importo/saldo 0. **Ripeti il comando con una seconda email** (un secondo account registrato), la consegna ne vuole due.
 
 ### Lista semplice — RicercaMovimenti1
 
@@ -178,69 +156,8 @@ GET http://localhost:3000/api/movimenti?n=5
 
 ```json
 {
-  "movimenti": [
-    {
-      "data": "2026-09-21T...",
-      "importo": 200,
-      "saldo": 1510,
-      "categoriaMovimento": {
-        "nomeCategoria": "Versamento Bancomat",
-        "tipologia": "Entrata",
-        "id": "..."
-      },
-      "descrizioneEstesa": "Versamento contanti",
-      "id": "..."
-    },
-    {
-      "data": "2026-09-21T...",
-      "importo": 10,
-      "saldo": 1310,
-      "categoriaMovimento": {
-        "nomeCategoria": "Ricarica Telefonica",
-        "tipologia": "Uscita",
-        "id": "..."
-      },
-      "descrizioneEstesa": "Ricarica iliad",
-      "id": "..."
-    },
-    {
-      "data": "2026-09-21T...",
-      "importo": 100,
-      "saldo": 1320,
-      "categoriaMovimento": {
-        "nomeCategoria": "Prelievo Contanti",
-        "tipologia": "Uscita",
-        "id": "..."
-      },
-      "descrizioneEstesa": "Prelievo sportello",
-      "id": "..."
-    },
-    {
-      "data": "2026-09-21T...",
-      "importo": 80,
-      "saldo": 1420,
-      "categoriaMovimento": {
-        "nomeCategoria": "Pagamento Utenze",
-        "tipologia": "Uscita",
-        "id": "..."
-      },
-      "descrizioneEstesa": "Bolletta luce",
-      "id": "..."
-    },
-    {
-      "data": "2026-09-21T...",
-      "importo": 1500,
-      "saldo": 1500,
-      "categoriaMovimento": {
-        "nomeCategoria": "Stipendio",
-        "tipologia": "Entrata",
-        "id": "..."
-      },
-      "descrizioneEstesa": "Stipendio mensile",
-      "id": "..."
-    }
-  ],
-  "saldoFinale": 1510
+  "movimenti": [ /* ultimi 5, dal più recente */ ],
+  "saldoFinale": 3345
 }
 ```
 
@@ -250,7 +167,7 @@ GET http://localhost:3000/api/movimenti?n=5
 GET http://localhost:3000/api/movimenti?n=10&categoriaId=6ab0aaa3
 ```
 
-**Risposta (200):** array filtrato, niente `saldoFinale`.
+Array filtrato, niente `saldoFinale`.
 
 ### Filtrata per date — RicercaMovimenti3
 
@@ -258,48 +175,29 @@ GET http://localhost:3000/api/movimenti?n=10&categoriaId=6ab0aaa3
 GET http://localhost:3000/api/movimenti?n=10&dataInizio=2026-01-01&dataFine=2026-12-31
 ```
 
-Stessa forma, filtrato per data.
-
 ### Dettaglio
 
 ```
 GET http://localhost:3000/api/movimenti/<id_movimento>
 ```
 
-### Export CSV (nuovo)
-
-**Perché**: richiesto in tutte e 3 le RicercaMovimenti — _"Possibilità di esportazione dei movimenti in formato excel oppure csv"_.
+### Export CSV
 
 ```
 GET http://localhost:3000/api/movimenti/export?n=10
 ```
 
-Accetta **gli stessi filtri** di `GET /movimenti` (`categoriaId`, `dataInizio`, `dataFine`).
+Su Postman: **"Send and Download"**, non "Send", altrimenti il CSV compare come testo grezzo invece di scaricarsi.
 
-**Su Postman**: non premere "Send" ma la freccetta accanto e scegli **"Send and Download"**, altrimenti il contenuto CSV ti compare come testo grezzo nella risposta invece di scaricarsi come file.
-
-**Risposta**: un file `movimenti.csv`, contenuto tipo:
-
-```csv
-Data,Importo,Categoria,DescrizioneEstesa,Saldo
-2026-09-21T14:32:10.000Z,200,"Versamento Bancomat","Versamento contanti",1510
-2026-09-21T14:31:05.000Z,10,"Ricarica Telefonica","Ricarica iliad",1310
-```
-
-Apribile direttamente con Excel/LibreOffice/Google Sheets.
-
-### Test di errore (validi per tutti gli endpoint di movimento)
-
+### Test di errore
 - `?categoriaId=xyz` → **400** `ValidationError`
 - `/movimenti/<id di un movimento di un altro utente>` → **404**
 - senza `Authorization` → **401**
-- Nessun `POST /movimenti` diretto: i movimenti nascono solo da ricarica/bonifico/apertura conto.
+- Nessun `POST /movimenti` diretto: nascono solo da ricarica/bonifico/apertura conto.
 
 ---
 
 ## RICARICA
-
-**Perché**: _"L'utente deve inserire: numero telefonico, operatore... e del taglio della ricarica... Va prima verificato che ci sia saldo disponibile"_.
 
 ```
 POST http://localhost:3000/api/ricariche
@@ -310,22 +208,6 @@ POST http://localhost:3000/api/ricariche
   "numeroTelefono": "3331234567",
   "operatore": "iliad",
   "taglio": 10
-}
-```
-
-**Risposta (201):**
-
-```json
-{
-  "data": "2026-09-21T...",
-  "importo": 10,
-  "saldo": 1500,
-  "categoriaMovimento": {
-    "nomeCategoria": "Ricarica Telefonica",
-    "tipologia": "Uscita"
-  },
-  "descrizioneEstesa": "Ricarica iliad numero 3331234567 - taglio €10",
-  "id": "6ab2..."
 }
 ```
 
@@ -347,31 +229,30 @@ POST http://localhost:3000/api/bonifici
 
 ```json
 {
-  "beneficiario": "Caleb Bianchi",
+  "beneficiario": "Caleb Frimpong",
   "importo": 50,
   "iban": "IT60X0542811101000000123457",
-  "causale": "Rimborso cena",
+  "causale": "Aiuto Codice",
   "dataEsecuzione": "2026-09-23T10:00:00.000Z"
 }
 ```
 
-**Novità**: prima il body aveva solo `ibanDestinatario` e `importo`. Ora servono anche `beneficiario` (nome di chi riceve, solo informativo — **non** viene verificato contro l'intestatario reale del conto), `causale` (motivo del bonifico, finisce nella descrizione del movimento) e `dataEsecuzione` (data ISO, diventa la data del movimento al posto di "adesso"). Il vecchio `ibanDestinatario` è stato rinominato semplicemente `iban`.
+Campi: `beneficiario` (nome di chi riceve, solo informativo — finisce nella descrizione del movimento, **non** viene incrociato con l'intestatario reale del conto destinatario), `iban` (del destinatario), `causale` (motivo, finisce anche lui in descrizione), `dataEsecuzione` (data ISO — **anche questa solo informativa**, vedi nota sotto).
 
 **Risposta (201)** — movimento sul conto del **mittente**:
 
 ```json
 {
-  "data": "2026-09-23T10:00:00.000Z",
+  "data": "2026-09-23T15:04:12.331Z",
   "importo": 50,
   "saldo": 1450,
-  "categoriaMovimento": {
-    "nomeCategoria": "Bonifico Uscita",
-    "tipologia": "Uscita"
-  },
-  "descrizioneEstesa": "Bonifico disposto a favore di Caleb Bianchi (IT60X0542811101000000123457) - causale: Rimborso cena",
+  "categoriaMovimento": { "nomeCategoria": "Bonifico Uscita", "tipologia": "Uscita" },
+  "descrizioneEstesa": "Bonifico disposto a favore di Caleb Bianchi (IT60X0542811101000000123457) - causale: Rimborso cena - data esecuzione richiesta: 23/9/2026",
   "id": "6ab3..."
 }
 ```
+
+**Nota importante — perché `data` non è uguale a `dataEsecuzione`**: il campo `data` del movimento è quello che regola l'ordinamento (`GET /movimenti` mostra sempre "gli ultimi n" per data decrescente) e il calcolo a catena del saldo (ogni movimento nuovo parte dal saldo dell'ultimo per data). Se `dataEsecuzione` (scelta liberamente dall'utente, anche nel passato) sovrascrivesse `data`, un bonifico con una data "vecchia" sparirebbe dalla lista degli "ultimi movimenti" pur essendo stato appena creato, e potrebbe alterare il calcolo del saldo degli altri movimenti. Per questo `data` resta **sempre** il momento reale in cui l'operazione avviene sul server, mentre `dataEsecuzione` viene solo registrata come testo dentro `descrizioneEstesa`.
 
 **2. Verifica sul destinatario (Caleb, col suo token):**
 
@@ -383,13 +264,10 @@ GET http://localhost:3000/api/movimenti?n=1
 {
   "movimenti": [
     {
-      "data": "2026-09-23T10:00:00.000Z",
+      "data": "2026-09-23T15:04:12.331Z",
       "importo": 50,
       "saldo": 50,
-      "categoriaMovimento": {
-        "nomeCategoria": "Bonifico Entrata",
-        "tipologia": "Entrata"
-      },
+      "categoriaMovimento": { "nomeCategoria": "Bonifico Entrata", "tipologia": "Entrata" },
       "descrizioneEstesa": "Bonifico disposto da Mario Rossi - causale: Rimborso cena",
       "id": "6ab4..."
     }
@@ -398,54 +276,37 @@ GET http://localhost:3000/api/movimenti?n=1
 }
 ```
 
-**Una** chiamata `POST /bonifici` crea **due** movimenti su **due conti diversi**, entrambi con `data` = `dataEsecuzione` che hai passato tu (non il timestamp reale della chiamata).
+**Una** chiamata `POST /bonifici` crea **due** movimenti su **due conti diversi**, entrambi con `data` = adesso, e compaiono subito in cima a `GET /movimenti` per entrambi gli utenti.
 
 ### Test di errore
-
 - IBAN inventato (campo `iban`) → **400** `IbanNotFound`
 - saldo insufficiente → **400** `InsufficientBalance`
 - `importo` negativo o zero → **400** `ValidationError`
-- `dataEsecuzione` mancante o non in formato data ISO (es. `"23/09/2026"` invece di `"2026-09-23T10:00:00.000Z"`) → **400** `ValidationError`
+- `dataEsecuzione` non in formato data ISO → **400** `ValidationError`
 - `beneficiario` o `causale` vuoti → **400** `ValidationError`
 
 ---
 
 ## Attenzione ai nomi dei campi in MongoDB
 
-Se modificate documenti a mano (Compass/Atlas), sia il **nome** che il **valore** di ogni campo sono case-sensitive: `iban` e `IBAN` sono due campi diversi per MongoDB. Nome sempre minuscolo (`iban`); valore tutto maiuscolo (standard IBAN vero).
+Se modificate documenti a mano (Compass/Atlas), sia il **nome** che il **valore** di ogni campo sono case-sensitive. Nome sempre minuscolo (`iban`); valore tutto maiuscolo.
 
 ---
 
 ## Cosa manca ancora rispetto alla consegna completa
 
-Non implementato: email di conferma registrazione + movimento di apertura automatico (in sospeso, servono decisioni di gruppo prima di scriverlo — vedi se bloccare o no il login finché l'utente non conferma).
+Non implementato: email di conferma registrazione + movimento di apertura automatico (in sospeso, servono decisioni di gruppo prima di scriverlo). Fuori dal codice: pubblicazione online dell'app.
 
 ---
 
 ## Changelog per il gruppo
 
-**IBAN ora automatico (non più a mano).** La consegna diceva di caricarlo manualmente dopo la registrazione, ma il prof ha confermato che va bene anche generarlo in automatico, quindi lo abbiamo cambiato così:
+**IBAN ora automatico (non più a mano).** Confermato ok dal prof. `POST /api/register` restituisce direttamente l'`iban`, generato dentro `ContoCorrenteService.register()` tramite `src/lib/iban.ts`. Script `set-iban.ts` non serve più.
 
-- `POST /api/register` ora restituisce direttamente l'`iban` nella risposta (vedi esempio sopra), generato dentro `ContoCorrenteService.register()`.
-- Rimossi: lo script `set-iban.ts` e il comando `npm run set-iban` — non servono più, cancellateli/aggiornate il vostro `package.json` locale se lo avete già lanciato in passato.
-- Nuovo file `src/lib/iban.ts` con la funzione `generaIban(accountId)`: stessa identica logica che stava nello script, solo richiamata automaticamente invece che a mano.
-- **Se avete già account di test creati prima di questo cambio e senza iban**, ripulite il DB (o ri-registrate quegli utenti) così l'iban risulta popolato per tutti; non serve più nessuno script per sistemarli a posteriori.
-- Nessun'altra funzionalità è cambiata: registrazione, login, bonifici ecc. si comportano come prima, solo l'iban compare subito.
+**Bonifico: nuovi campi nel body.** `ibanDestinatario` → rinominato `iban`. Aggiunti `beneficiario`, `causale`, `dataEsecuzione` (tutti obbligatori).
 
-**Bonifico: nuovi campi nel body.** Prima il body di `POST /api/bonifici` aveva solo `ibanDestinatario` e `importo`. Ora è così:
+**FIX di oggi — bug "il bonifico non appare nella lista movimenti".** Causa: `dataEsecuzione` sovrascriveva il campo `data` reale del movimento, quindi un bonifico testato con una data non recente finiva "in fondo" all'ordinamento e spariva dagli "ultimi n movimenti". Corretto: `data` resta sempre il momento reale dell'operazione sul server; `dataEsecuzione` è ora solo testo dentro `descrizioneEstesa`. File toccati: `movimento.service.ts` (rimosso il parametro `dataMovimento` da `create()`), `bonifico.service.ts` (non passa più una data custom, la formatta e la mette in descrizione).
 
-```json
-{
-  "beneficiario": "string",
-  "importo": "number",
-  "iban": "string",
-  "causale": "string",
-  "dataEsecuzione": "string (data ISO)"
-}
-```
+**Aggiunto `fotoProfilo`.** Nuovo campo opzionale (url stringa) su `RegisterDto`, entity e model di `ContoCorrente`. Torna in ogni risposta che espone il profilo utente (register, login, `/me`).
 
-- `ibanDestinatario` → rinominato `iban` (stesso significato, stesso controllo su `IbanNotFound`).
-- `beneficiario` (nuovo, obbligatorio): nome di chi riceve il bonifico, solo a scopo descrittivo — finisce nella `descrizioneEstesa` del movimento generato, non viene incrociato con l'intestatario vero del conto destinatario.
-- `causale` (nuovo, obbligatorio): motivo del bonifico, anche questo finisce nella `descrizioneEstesa`, sia lato mittente che lato destinatario.
-- `dataEsecuzione` (nuovo, obbligatorio, data ISO tipo `"2026-09-23T10:00:00.000Z"`): diventa la `data` di entrambi i movimenti creati (mittente e destinatario), al posto del timestamp reale della chiamata. Attenzione: non c'è nessuna validazione che sia una data odierna o passata, quindi tecnicamente si può registrare un bonifico con data futura — se volete bloccarlo fatelo sapere che aggiungiamo il controllo.
-- File toccati: `bonifico.dto.ts`, `bonifico.service.ts`, `bonifico.controller.ts`, e `movimento.service.ts` (il metodo `create()` ora accetta un `dataMovimento` opzionale, usato solo dal bonifico — ricarica e apertura conto continuano a usare "adesso" come prima).
+**`test-data.ts` aggiornato**: ora crea 10 movimenti (non 5), il primo è sempre `"Apertura Conto"` con importo 0 — per rispettare alla lettera *"caricare manualmente almeno 10 Movimenti per due conti correnti di test: il primo movimento deve avere come Descrizione Estesa 'Apertura Conto'"*. Ricordatevi di lanciarlo per **due** account distinti, non uno solo.

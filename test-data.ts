@@ -4,9 +4,10 @@ import { ContoCorrenteModel } from "./src/api/conto-corrente/conto-corrente.mode
 import movimentoSrv from "./src/api/movimento/movimento.service";
 import categoriaSrv from "./src/api/categoria/categoria.service";
 
-const EMAIL = process.argv[2] || "mario@test.it";
+const EMAIL = process.argv[2] || "caleb.frimpong@test.it";
 
 const movimentiDiProva = [
+  { categoria: "Apertura Conto", importo: 0, descrizione: "Apertura Conto" },
   { categoria: "Stipendio", importo: 1500, descrizione: "Stipendio mensile" },
   { categoria: "Pagamento Utenze", importo: 80, descrizione: "Bolletta luce" },
   {
@@ -22,6 +23,18 @@ const movimentiDiProva = [
   {
     categoria: "Versamento Bancomat",
     importo: 200,
+    descrizione: "Versamento contanti",
+  },
+  { categoria: "Pagamento Utenze", importo: 45, descrizione: "Bolletta gas" },
+  { categoria: "Stipendio", importo: 1500, descrizione: "Stipendio mensile" },
+  {
+    categoria: "Prelievo Contanti",
+    importo: 50,
+    descrizione: "Prelievo sportello",
+  },
+  {
+    categoria: "Versamento Bancomat",
+    importo: 150,
     descrizione: "Versamento contanti",
   },
 ];
@@ -59,7 +72,10 @@ async function run() {
     console.log(`creato: ${m.descrizione}`);
   }
 
-  console.log("fatto");
+  console.log(`fatto: 10 movimenti creati per ${EMAIL}`);
+  console.log(
+    `ricorda: la consegna ne chiede almeno 10 per DUE conti di test, rilancia con una seconda email`,
+  );
   process.exit();
 }
 

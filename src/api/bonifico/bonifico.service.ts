@@ -32,14 +32,19 @@ export class BonificoService {
       );
     }
 
-    const dataMovimento = new Date(dto.dataEsecuzione);
+    // dataEsecuzione è un'informazione del bonifico (quando l'utente
+    // avrebbe voluto che avvenisse), NON il campo "data" reale del
+    // movimento: quello resta sempre il momento in cui l'operazione
+    // avviene davvero sul server (vedi movimento.service.ts)
+    const dataEsecuzioneFormattata = new Date(
+      dto.dataEsecuzione,
+    ).toLocaleDateString("it-IT");
 
     // movimento in uscita sul conto del mittente
     const movimentoUscita = await movimentoSrv.create(mittente.id, {
       importo: dto.importo,
       categoriaMovimentoId: categoriaUscita.id,
-      descrizioneEstesa: `Bonifico disposto a favore di ${dto.beneficiario} (${dto.iban}) - causale: ${dto.causale}`,
-      dataMovimento,
+      descrizioneEstesa: `Bonifico disposto a favore di ${dto.beneficiario} (${dto.iban}) - causale: ${dto.causale} - data esecuzione richiesta: ${dataEsecuzioneFormattata}`,
     });
 
     // movimento in entrata sul conto del destinatario
@@ -47,7 +52,6 @@ export class BonificoService {
       importo: dto.importo,
       categoriaMovimentoId: categoriaEntrata.id,
       descrizioneEstesa: `Bonifico disposto da ${mittente.nomeTitolare} ${mittente.cognomeTitolare} - causale: ${dto.causale}`,
-      dataMovimento,
     });
 
     return movimentoUscita;
