@@ -7,18 +7,29 @@ import operationLogSrv from "../operation-log/operation-log.service";
 export const create = async (
   req: TypedRequest<CreateBonificoDto>,
   res: Response,
-  next: NextFunction) => {
+  next: NextFunction,
+) => {
   try {
     const movimento = await bonificoSrv.esegui(
       req.user!,
       req.body.ibanDestinatario,
-      req.body.importo
+      req.body.importo,
     );
-    await operationLogSrv.log('bonifico', req.ip ?? 'unknown', true, req.user!.id);
+    await operationLogSrv.log(
+      "bonifico",
+      req.ip ?? "unknown",
+      true,
+      req.user!.id,
+    );
     res.status(201);
     res.json(movimento);
   } catch (err) {
-    await operationLogSrv.log('bonifico', req.ip ?? 'unknown', false, req.user?.id);
+    await operationLogSrv.log(
+      "bonifico",
+      req.ip ?? "unknown",
+      false,
+      req.user?.id,
+    );
     next(err);
   }
 };
