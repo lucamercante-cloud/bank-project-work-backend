@@ -4,6 +4,6 @@ import { isAuthenticated } from "../../lib/auth/authenticated.middleware";
 
 const router = Router();
 
-router.get('/', isAuthenticated, list);
+router.get("/", isAuthenticated, list);
 
 export default router;

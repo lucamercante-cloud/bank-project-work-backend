@@ -14,7 +14,8 @@ export class CategoriaService {
   }
 
   // usato da bonifico.service.ts e ricarica.service.ts per trovare la
-  // categoria giusta senza dover conoscere il suo id in anticipo
+  // categoria giusta senza dover conoscere il suo id in anticipow
+  
   async getByNome(nomeCategoria: string): Promise<Categoria | null> {
     return CategoriaModel.findOne({ nomeCategoria });
   }
