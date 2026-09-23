@@ -10,11 +10,7 @@ export const create = async (
   next: NextFunction,
 ) => {
   try {
-    const movimento = await bonificoSrv.esegui(
-      req.user!,
-      req.body.ibanDestinatario,
-      req.body.importo,
-    );
+    const movimento = await bonificoSrv.esegui(req.user!, req.body);
     await operationLogSrv.log(
       "bonifico",
       req.ip ?? "unknown",

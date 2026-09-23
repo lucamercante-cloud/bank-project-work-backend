@@ -347,23 +347,28 @@ POST http://localhost:3000/api/bonifici
 
 ```json
 {
-  "ibanDestinatario": "IT60X0542811101000000123457",
-  "importo": 50
+  "beneficiario": "Caleb Bianchi",
+  "importo": 50,
+  "iban": "IT60X0542811101000000123457",
+  "causale": "Rimborso cena",
+  "dataEsecuzione": "2026-09-23T10:00:00.000Z"
 }
 ```
+
+**Novità**: prima il body aveva solo `ibanDestinatario` e `importo`. Ora servono anche `beneficiario` (nome di chi riceve, solo informativo — **non** viene verificato contro l'intestatario reale del conto), `causale` (motivo del bonifico, finisce nella descrizione del movimento) e `dataEsecuzione` (data ISO, diventa la data del movimento al posto di "adesso"). Il vecchio `ibanDestinatario` è stato rinominato semplicemente `iban`.
 
 **Risposta (201)** — movimento sul conto del **mittente**:
 
 ```json
 {
-  "data": "2026-09-21T...",
+  "data": "2026-09-23T10:00:00.000Z",
   "importo": 50,
   "saldo": 1450,
   "categoriaMovimento": {
     "nomeCategoria": "Bonifico Uscita",
     "tipologia": "Uscita"
   },
-  "descrizioneEstesa": "Bonifico disposto a favore di IT60X0542811101000000123457",
+  "descrizioneEstesa": "Bonifico disposto a favore di Caleb Bianchi (IT60X0542811101000000123457) - causale: Rimborso cena",
   "id": "6ab3..."
 }
 ```
@@ -378,14 +383,14 @@ GET http://localhost:3000/api/movimenti?n=1
 {
   "movimenti": [
     {
-      "data": "2026-09-21T...",
+      "data": "2026-09-23T10:00:00.000Z",
       "importo": 50,
       "saldo": 50,
       "categoriaMovimento": {
         "nomeCategoria": "Bonifico Entrata",
         "tipologia": "Entrata"
       },
-      "descrizioneEstesa": "Bonifico disposto da Mario Rossi",
+      "descrizioneEstesa": "Bonifico disposto da Mario Rossi - causale: Rimborso cena",
       "id": "6ab4..."
     }
   ],
@@ -393,13 +398,15 @@ GET http://localhost:3000/api/movimenti?n=1
 }
 ```
 
-**Una** chiamata `POST /bonifici` crea **due** movimenti su **due conti diversi**.
+**Una** chiamata `POST /bonifici` crea **due** movimenti su **due conti diversi**, entrambi con `data` = `dataEsecuzione` che hai passato tu (non il timestamp reale della chiamata).
 
 ### Test di errore
 
-- IBAN inventato → **400** `IbanNotFound`
+- IBAN inventato (campo `iban`) → **400** `IbanNotFound`
 - saldo insufficiente → **400** `InsufficientBalance`
 - `importo` negativo o zero → **400** `ValidationError`
+- `dataEsecuzione` mancante o non in formato data ISO (es. `"23/09/2026"` invece di `"2026-09-23T10:00:00.000Z"`) → **400** `ValidationError`
+- `beneficiario` o `causale` vuoti → **400** `ValidationError`
 
 ---
 
@@ -424,3 +431,21 @@ Non implementato: email di conferma registrazione + movimento di apertura automa
 - Nuovo file `src/lib/iban.ts` con la funzione `generaIban(accountId)`: stessa identica logica che stava nello script, solo richiamata automaticamente invece che a mano.
 - **Se avete già account di test creati prima di questo cambio e senza iban**, ripulite il DB (o ri-registrate quegli utenti) così l'iban risulta popolato per tutti; non serve più nessuno script per sistemarli a posteriori.
 - Nessun'altra funzionalità è cambiata: registrazione, login, bonifici ecc. si comportano come prima, solo l'iban compare subito.
+
+**Bonifico: nuovi campi nel body.** Prima il body di `POST /api/bonifici` aveva solo `ibanDestinatario` e `importo`. Ora è così:
+
+```json
+{
+  "beneficiario": "string",
+  "importo": "number",
+  "iban": "string",
+  "causale": "string",
+  "dataEsecuzione": "string (data ISO)"
+}
+```
+
+- `ibanDestinatario` → rinominato `iban` (stesso significato, stesso controllo su `IbanNotFound`).
+- `beneficiario` (nuovo, obbligatorio): nome di chi riceve il bonifico, solo a scopo descrittivo — finisce nella `descrizioneEstesa` del movimento generato, non viene incrociato con l'intestatario vero del conto destinatario.
+- `causale` (nuovo, obbligatorio): motivo del bonifico, anche questo finisce nella `descrizioneEstesa`, sia lato mittente che lato destinatario.
+- `dataEsecuzione` (nuovo, obbligatorio, data ISO tipo `"2026-09-23T10:00:00.000Z"`): diventa la `data` di entrambi i movimenti creati (mittente e destinatario), al posto del timestamp reale della chiamata. Attenzione: non c'è nessuna validazione che sia una data odierna o passata, quindi tecnicamente si può registrare un bonifico con data futura — se volete bloccarlo fatelo sapere che aggiungiamo il controllo.
+- File toccati: `bonifico.dto.ts`, `bonifico.service.ts`, `bonifico.controller.ts`, e `movimento.service.ts` (il metodo `create()` ora accetta un `dataMovimento` opzionale, usato solo dal bonifico — ricarica e apertura conto continuano a usare "adesso" come prima).

@@ -6,12 +6,10 @@ import categoriaSrv from "../categoria/categoria.service";
 const DEFAULT_N = 10;
 
 export class MovimentoService {
-
   async find(
     contoCorrenteId: string,
-    filters: QueryMovimentoDto
-  ): Promise<{ movimenti: Movimento[], saldoFinale?: number }> {
-
+    filters: QueryMovimentoDto,
+  ): Promise<{ movimenti: Movimento[]; saldoFinale?: number }> {
     const query: Record<string, any> = { contoCorrente: contoCorrenteId };
 
     if (filters.categoriaId) {
@@ -26,7 +24,7 @@ export class MovimentoService {
     const movimenti = await MovimentoModel.find(query)
       .sort({ data: -1 })
       .limit(filters.n ?? DEFAULT_N)
-      .populate('categoriaMovimento');
+      .populate("categoriaMovimento");
 
     // il saldo finale ha senso solo nella vista "semplice" (RicercaMovimenti1):
     // appena filtri per categoria o per intervallo di date, il saldo del
@@ -34,24 +32,31 @@ export class MovimentoService {
     // (coerente con la consegna: "Non visualizza il saldo finale")
     let saldoFinale: number | undefined = undefined;
     if (!filters.categoriaId && !filters.dataInizio && !filters.dataFine) {
-      const ultimo = await MovimentoModel.findOne({ contoCorrente: contoCorrenteId })
-        .sort({ data: -1 });
+      const ultimo = await MovimentoModel.findOne({
+        contoCorrente: contoCorrenteId,
+      }).sort({ data: -1 });
       saldoFinale = ultimo?.saldo ?? 0;
     }
 
     return { movimenti, saldoFinale };
   }
 
-  async getById(contoCorrenteId: string, id: string): Promise<Movimento | null> {
-    return MovimentoModel.findOne({ _id: id, contoCorrente: contoCorrenteId })
-      .populate('categoriaMovimento');
+  async getById(
+    contoCorrenteId: string,
+    id: string,
+  ): Promise<Movimento | null> {
+    return MovimentoModel.findOne({
+      _id: id,
+      contoCorrente: contoCorrenteId,
+    }).populate("categoriaMovimento");
   }
 
   // usato da bonifico/ricarica PRIMA di creare il movimento, per sapere
   // se il conto ha saldo sufficiente
   async getSaldoAttuale(contoCorrenteId: string): Promise<number> {
-    const ultimo = await MovimentoModel.findOne({ contoCorrente: contoCorrenteId })
-      .sort({ data: -1 });
+    const ultimo = await MovimentoModel.findOne({
+      contoCorrente: contoCorrenteId,
+    }).sort({ data: -1 });
     return ultimo?.saldo ?? 0;
   }
 
@@ -60,31 +65,39 @@ export class MovimentoService {
   // movimento. Il saldo NON arriva mai dal client: si calcola qui.
   async create(
     contoCorrenteId: string,
-    data: { importo: number, categoriaMovimentoId: string, descrizioneEstesa: string }
+    data: {
+      importo: number;
+      categoriaMovimentoId: string;
+      descrizioneEstesa: string;
+      dataMovimento?: Date;
+    },
   ): Promise<Movimento> {
-
     const categoria = await categoriaSrv.getById(data.categoriaMovimentoId);
     if (!categoria) {
-      throw new Error('categoria non valida');
+      throw new Error("categoria non valida");
     }
 
-    const ultimo = await MovimentoModel.findOne({ contoCorrente: contoCorrenteId })
-      .sort({ data: -1 });
+    const ultimo = await MovimentoModel.findOne({
+      contoCorrente: contoCorrenteId,
+    }).sort({ data: -1 });
     const saldoPrecedente = ultimo?.saldo ?? 0;
 
-    const segno = categoria.tipologia === 'Entrata' ? 1 : -1;
-    const nuovoSaldo = saldoPrecedente + (segno * data.importo);
+    const segno = categoria.tipologia === "Entrata" ? 1 : -1;
+    const nuovoSaldo = saldoPrecedente + segno * data.importo;
 
     const movimento = await MovimentoModel.create({
       contoCorrente: contoCorrenteId,
-      data: new Date(),
+      // dataMovimento arriva dal bonifico quando l'utente indica una
+      // dataEsecuzione; ricarica/apertura conto non la passano e restano
+      // "adesso" come prima
+      data: data.dataMovimento ?? new Date(),
       importo: data.importo,
       saldo: nuovoSaldo,
       categoriaMovimento: data.categoriaMovimentoId,
-      descrizioneEstesa: data.descrizioneEstesa
+      descrizioneEstesa: data.descrizioneEstesa,
     });
 
-    return movimento.populate('categoriaMovimento');
+    return movimento.populate("categoriaMovimento");
   }
 }
 
