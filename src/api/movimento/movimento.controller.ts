@@ -8,9 +8,13 @@ import { NotFoundError } from "../../errors/not-found.error";
 export const list = async (
   req: TypedRequest<unknown, QueryMovimentoDto>,
   res: Response,
-  next: NextFunction) => {
+  next: NextFunction,
+) => {
   try {
-    const { movimenti, saldoFinale } = await movimentoSrv.find(req.user!.id, req.query);
+    const { movimenti, saldoFinale } = await movimentoSrv.find(
+      req.user!.id,
+      req.query,
+    );
     res.json({ movimenti, saldoFinale });
   } catch (err) {
     next(err);
@@ -20,7 +24,8 @@ export const list = async (
 export const detail = async (
   req: TypedRequest<unknown, unknown, IdParams>,
   res: Response,
-  next: NextFunction) => {
+  next: NextFunction,
+) => {
   try {
     const movimento = await movimentoSrv.getById(req.user!.id, req.params.id);
     if (!movimento) {
@@ -39,30 +44,41 @@ function escapeCsvField(value: string): string {
 export const exportCsv = async (
   req: TypedRequest<unknown, QueryMovimentoDto>,
   res: Response,
-  next: NextFunction) => {
+  next: NextFunction,
+) => {
   try {
     const { movimenti } = await movimentoSrv.find(req.user!.id, req.query);
 
-    const header = ['Data', 'Importo', 'Categoria', 'DescrizioneEstesa', 'Saldo'].join(',');
+    const header = [
+      "Data",
+      "Importo",
+      "Categoria",
+      "DescrizioneEstesa",
+      "Saldo",
+    ].join(",");
 
     const rows = movimenti.map((m: any) => {
       const data = new Date(m.data).toISOString();
-      const categoria = typeof m.categoriaMovimento === 'object'
-        ? m.categoriaMovimento.nomeCategoria
-        : '';
+      const categoria =
+        typeof m.categoriaMovimento === "object"
+          ? m.categoriaMovimento.nomeCategoria
+          : "";
       return [
         data,
         m.importo,
         escapeCsvField(categoria),
         escapeCsvField(m.descrizioneEstesa),
-        m.saldo
-      ].join(',');
+        m.saldo,
+      ].join(",");
     });
 
-    const csv = [header, ...rows].join('\n');
+    const csv = [header, ...rows].join("\n");
 
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="movimenti.csv"');
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="movimenti.csv"',
+    );
     res.send(csv);
   } catch (err) {
     next(err);
