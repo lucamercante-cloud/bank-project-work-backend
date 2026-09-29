@@ -22,6 +22,10 @@ app.use(
 app.use(morgan("tiny"));
 app.use(bodyParser.json());
 
+app.get("/", (req, res) => {
+  res.status(200).json({ status: "ok", message: "Backend attivo su Vercel" });
+});
+
 app.use("/api", apiRouter);
 
 app.use(errorHandlers);
