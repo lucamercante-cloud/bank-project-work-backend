@@ -19,5 +19,5 @@ function getConnection() {
 
 export default async function handler(req: any, res: any) {
   await getConnection();
-  return (app as any)(req, res);
+  return app(req, res);
 }
