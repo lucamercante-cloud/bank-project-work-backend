@@ -8,16 +8,13 @@ async function getConnection() {
   if (!connectionPromise) {
     const mongoUri = process.env.MONGO_URI;
     if (!mongoUri) {
-      throw new Error(
-        "MONGO_URI non configurata nelle Environment Variables di Vercel",
-      );
+      throw new Error("MONGO_URI non configurata su Vercel");
     }
     connectionPromise = mongoose.connect(mongoUri);
   }
   return connectionPromise;
 }
 
-// QUESTA PARTE MANCAVA E CAUSAVA IL 404 SU VERCEL
 export default async function handler(req: any, res: any) {
   await getConnection();
   return app(req, res);
