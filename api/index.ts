@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 
 let connectionPromise: Promise<typeof mongoose> | null = null;
 
-function getConnection() {
+async function getConnection() {
   if (!connectionPromise) {
     const mongoUri = process.env.MONGO_URI;
     if (!mongoUri) {
@@ -17,6 +17,7 @@ function getConnection() {
   return connectionPromise;
 }
 
+// QUESTA PARTE MANCAVA E CAUSAVA IL 404 SU VERCEL
 export default async function handler(req: any, res: any) {
   await getConnection();
   return app(req, res);
