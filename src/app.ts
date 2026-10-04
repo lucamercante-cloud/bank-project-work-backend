@@ -9,15 +9,17 @@ import "./lib/auth/auth-handlers";
 
 const app = express();
 
-app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      "https://bank-project-work-backend.vercel.app",
-    ],
-    credentials: true,
-  }),
-);
+// app.use(
+//   cors({
+//     origin: [
+//       "http://localhost:5173",
+//       "https://bank-project-work-backend.vercel.app",
+//     ],
+//     credentials: true,
+//   }),
+// );
+
+app.use(cors());
 
 app.use(morgan("tiny"));
 app.use(bodyParser.json());
